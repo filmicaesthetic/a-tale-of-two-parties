@@ -1,4 +1,4 @@
-## Using TheyWorkForYou and PublicWhip data to try to 
+## Using PublicWhip data to try to 
 ## measure how parties vote on particular policies, how it's changed over time,
 ## and where they land on the political spectrum
 

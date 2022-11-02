@@ -251,26 +251,9 @@ all_pol_perc <- all_pol |>
 pal <- c("Con" = "#0087DC",
          "Lab" = "#E4003B")
 
-lab_elections <- data.frame(Date = c(1997, 2001, 2005, 2010, 2015, 2017, 2019),
-                        label = c("General Election", "General Election", "General Election", "General Election", "General Election", "General Election", "General Election"),
-                        vote_perc = c("43.2%", "40.7%", "35.2%", "29.0%", "30.4%", "40.0%", "32.1%"),
-                        vote_seats = c("418 seats", "412 seats", "403 seats", "258 seats", "232 seats", "262 seats", "202 seats"),
-                        seat_no = c(418, 412, 403, 258, 232, 262, 202))
+con_col <- "#0087DC"
+lab_col <- "#E4003B"
 
-lab_leaders <- data.frame(Party = c("Lab", "Lab", "Lab", "Lab", "Lab"),
-                      start_date = c("1997", "2007", "2010", "2015", "2020"),
-                      end_date = c("2007", "2010", "2015", "2020", "2022"),
-                      pm = c("Y", "Y", "N", "N", "N"),
-                      leader_name = c("Blair", "Brown", "Miliband", "Corbyn", "Starmer"),
-                      leader_img = c("https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Tony_Blair_2010_%28cropped%29.jpg/220px-Tony_Blair_2010_%28cropped%29.jpg",
-                                     "https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/Gordon_Brown_%282008%29.jpg/220px-Gordon_Brown_%282008%29.jpg",
-                                     "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/Official_portrait_of_Rt_Hon_Edward_Miliband_MP_crop_2.jpg/220px-Official_portrait_of_Rt_Hon_Edward_Miliband_MP_crop_2.jpg",
-                                     "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d1/Official_portrait_of_Jeremy_Corbyn_crop_2%2C_2020.jpg/220px-Official_portrait_of_Jeremy_Corbyn_crop_2%2C_2020.jpg",
-                                     "https://upload.wikimedia.org/wikipedia/commons/thumb/3/33/Official_portrait_of_Keir_Starmer.jpg/220px-Official_portrait_of_Keir_Starmer.jpg")) |>
-  mutate(leader_img = circle_crop(leader_img))
-
-font_add_google("Roboto", "Roboto")
-showtext_auto()
 
 lab_pm_pal <- c("Y" = "#E4003B",
                 "N" = "#636363")
@@ -320,7 +303,7 @@ con_elections <- data.frame(Date = c(1997, 2001, 2005, 2010, 2015, 2017, 2019),
 con_leaders <- data.frame(Party = c("Con", "Con", "Con", "Con", "Con", "Con", "Con", "Con"),
                           start_date = c("1997", "2001", "2003", "2005", "2010", "2016", "2019", "2022"),
                           end_date = c("2001", "2003", "2005", "2010", "2016", "2019", "2022", "2022"),
-                          pm = c("N", "N", "N", "N", "Y", "Y", "Y", "Y"),
+                          pm = c("N", "N", "N", "N", "C", "C", "C", "C"),
                           leader_name = c("Hague", "Duncan\nSmith", "Howard", "Cameron", "Cameron", "May", "Johnson", "Truss"),
                           leader_img = c("https://upload.wikimedia.org/wikipedia/commons/thumb/7/70/William_Hague_Foreign_Secretary_%282010%29.jpg/444px-William_Hague_Foreign_Secretary_%282010%29.jpg",
                                          "https://upload.wikimedia.org/wikipedia/commons/thumb/d/da/Official_portrait_of_Sir_Iain_Duncan_Smith_MP_crop_2.jpg/450px-Official_portrait_of_Sir_Iain_Duncan_Smith_MP_crop_2.jpg",
@@ -416,3 +399,69 @@ all_pol_perc |>
   group_by(Party, Vote, Date) |>
   summarise(vote_perc = sum(vote_perc)) |>
   streamgraph("Vote", "vote_perc", "Date")
+
+all_pm_pal <- c("L" = lab_col,
+                "C" = con_col,
+                "N" = "#636363",
+                "X" = "#d1d1d1")
+
+policy_wins <- data.frame(all_pol) |>
+  group_by(Date, Subject, political_leaning) |>
+  summarise(win = sum(as.numeric(Policy.vote == "MAJORITY"))) |>
+  mutate(win = ifelse(win > 0, 1, 0),
+         Date = year(Date)) |>
+  group_by(Date, political_leaning) |>
+  mutate(yr_id = 1:n()) |>
+  mutate(x = Date + ((((yr_id - 1) + 4) %% 4) / 4),
+         y = 1.05 + (((yr_id - 1) %/% 4) / 16)) |>
+  mutate(col = ifelse(win == 0, "X",
+                      ifelse(political_leaning == "Left", "N", "N"))) |>
+  mutate(y = ifelse(political_leaning == "Left", -1 * y, y))
+
+all_pol_perc |>
+  filter(Vote == "FOR") |>
+  filter(Party %in% c("Lab", "Con")) |>
+  mutate(`Vote Perc` = ifelse(political_leaning == "Left", `Vote Perc` * -1, `Vote Perc`)) |>
+  mutate(`Vote Perc` = ifelse(Date == 1997 & political_leaning == "Left" & Party == "Con", -0.0000000000001, `Vote Perc`)) |> # plots incorrectly if first value is zero :(
+  ggplot(aes(x = Date, y = `Vote Perc`)) +
+  geom_area(data = . %>% filter(Party == "Lab"), fill = lab_col, aes(group = political_leaning), position = position_stack(), alpha = 0.5, fill = "#E4003B") +
+  geom_area(data = . %>% filter(Party == "Con"), fill = con_col, aes(group = political_leaning), position = position_stack(), alpha = 0.5, fill = "#E4003B") +
+  geom_segment(data = lab_elections, aes(x = Date, xend = Date, y = -2.05, yend = 1), color = "#636363") +
+  geom_text(data = lab_elections, aes(x = Date, y = -2.1, label = label), vjust = 0, size = 3, hjust = 1, color = "#636363", nudge_x = 0.2) +
+  geom_text(data = lab_elections, aes(x = Date, y = -2.1, label = paste0(vote_seats, " | ", vote_perc)), vjust = 0, size = 3, hjust = 1, color = "#E4003B", nudge_x = -0.2) +
+  geom_segment(data = lab_leaders, aes(x = as.numeric(start_date) + 0.05, xend = as.numeric(end_date) - 0.05, y = -1.75, yend = -1.75, color = pm), alpha = 0.6, size = 2) +
+  geom_image(data = lab_leaders, aes(image = leader_img, x = as.numeric(start_date) + ((as.numeric(end_date) - as.numeric(start_date)) / 2), y = -1.75), size = 0.05) +
+  geom_text(data = lab_leaders, aes(label = toupper(leader_name), x = as.numeric(start_date) + ((as.numeric(end_date) - as.numeric(start_date)) / 2), y = -1.75), size = 3, nudge_y = -0.2, angle = 90, color = "#636363", fontface = "bold") +
+  geom_segment(aes(y = 0, yend = 0, x = 1997, xend = 2022), size = 1.2, color = "white") +
+  geom_rect(data = lab_leaders, aes(y = as.numeric(start_date), x = as.numeric(end_date), fill = pm, xmin = as.numeric(start_date) + 0.05, xmax = as.numeric(end_date) - 0.05, ymin = -1.75, ymax = -1), alpha = 0.08) +
+  geom_rect(data = lab_leaders, aes(y = as.numeric(start_date), x = as.numeric(end_date), fill = pm, xmin = as.numeric(start_date) + 0.05, xmax = as.numeric(end_date) - 0.05, ymin = -1, ymax = 1), alpha = 0.12) +
+  geom_point(data = lab_elections, aes(size = seat_no, y = -2.05), color = "#E4003B") +
+  geom_segment(data = con_elections, aes(x = Date, xend = Date, y = -1, yend = 2.05), color = "#636363") +
+  geom_text(data = con_elections, aes(x = Date, y = 2.1, label = label), vjust = 0, size = 3, hjust = 0, color = "#636363", nudge_x = 0.2) +
+  geom_text(data = con_elections, aes(x = Date, y = 2.1, label = paste0(vote_seats, " | ", vote_perc)), vjust = 0, size = 3, hjust = 0, color = "#0087DC", nudge_x = -0.2) +
+  geom_segment(data = con_leaders, aes(x = as.numeric(start_date) + 0.05, xend = as.numeric(end_date) - 0.05, y = 1.75, yend = 1.75, color = pm), alpha = 0.6, size = 2) +
+  geom_image(data = con_leaders, aes(image = leader_img, x = as.numeric(start_date) + ((as.numeric(end_date) - as.numeric(start_date)) / 2), y = 1.75), size = 0.05) +
+  geom_text(data = con_leaders, aes(label = toupper(leader_name), x = as.numeric(start_date) + ((as.numeric(end_date) - as.numeric(start_date)) / 2), y = 1.75), size = 3, nudge_y = 0.2, angle = 270, color = "#636363", fontface = "bold", lineheight = 0.8) +
+  geom_segment(aes(y = 0, yend = 0, x = 1997, xend = 2022), color = "white") +
+  geom_rect(data = con_leaders, aes(y = as.numeric(start_date), x = as.numeric(end_date), fill = pm, xmin = as.numeric(start_date) + 0.05, xmax = as.numeric(end_date) - 0.05, ymin = 1.75, ymax = 1), alpha = 0.08) +
+  geom_rect(data = con_leaders, aes(y = as.numeric(start_date), x = as.numeric(end_date), fill = pm, xmin = as.numeric(start_date) + 0.05, xmax = as.numeric(end_date) - 0.05, ymin = -1, ymax = 1), alpha = 0.12) +
+  geom_point(data = con_elections, aes(size = seat_no, y = 2.05), color = "#0087DC") +
+  geom_point(data = policy_wins, aes(x = x, y = y, color = col), size = 1.5, alpha = 0.5) +
+  annotate(geom = "text", x = 2022.5, y = -0.05, label = "Vote % for policies indicating\na shift to the political LEFT", hjust = 1, vjust = 0, size = 3.5, lineheight = 0.8) +
+  annotate(geom = "text", x = 2022.5, y = 0.05, label = "Vote % for policies indicating\na shift to the political RIGHT", hjust = 0, vjust = 0, size = 3.5, lineheight = 0.8) +
+  annotate(geom = "text", x = 2023.2, y = 2.5, label = "Conservative", hjust = 1, vjust = 0, size = 8, lineheight = 0.8, color = con_col, family = "Roboto", fontface = "bold") +
+  annotate(geom = "text", x = 2023.2, y = -2.5, label = "Labour", hjust = 0, vjust = 0, size = 8, lineheight = 0.8, color = lab_col, family = "Roboto", fontface = "bold") +
+  scale_y_continuous(labels = c("","", "100%", "0%", "100%", "","")) +
+  #labs(title = "Labour") +
+  scale_x_continuous(n.breaks = 24) +
+  scale_fill_manual(values = all_pm_pal) +
+  scale_size(range = c(2.02, 4.18)) +
+  scale_color_manual(values = all_pm_pal) +
+  coord_flip(ylim = c(-2.5, 2.5)) +
+  theme_minimal() +
+  theme(legend.position = "none",
+        axis.title = element_blank(),
+        plot.title = element_text(face = "bold", hjust = 0.95, color = "#E4003B", size = 25),
+        text = element_text(family = "Roboto"),
+        panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank())
