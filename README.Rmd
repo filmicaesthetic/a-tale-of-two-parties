@@ -6,8 +6,6 @@ date: "2022-11-02"
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-
-library(gt)
 ```
 
 
@@ -22,7 +20,7 @@ Policies and parliament votes data were scraped using the rvest package from [Pu
 ```{r echo=FALSE}
 df <- read.csv("data/all_labelled_policies.csv")
 
-gt(df |> head())
+knitr::kable(df |> head(), row.names = FALSE)
 ```
 
 
